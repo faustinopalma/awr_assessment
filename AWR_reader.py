@@ -14,6 +14,11 @@ for (dir_path, dir_names, file_names) in walk(dir_path):
     awr_paths.extend(file_paths)
 
 #%% for each file in the ./AWR/ subfolder, read the data and add it to the output list
+
+# additional features to implement:
+# - extract more data on exadata - which data?
+# - extract info about CDB - which data? what if CDB is not referenced in some old reports?
+# - extract cpu_count - where is located this info?
 output = []
 for awr_path in awr_paths:
     print(awr_path)
@@ -23,15 +28,25 @@ for awr_path in awr_paths:
     row = {}
     row['AWR file'] = awr_path
 
-    table = soup.find(string=re.compile('DB Name')).findParent('table')
+    table = soup.find(string='DB Name').findParent('table')
     df = pd.read_html(str(table))[0]
     row['DB Name'] = str(df['DB Name'][0])
+    row['Release'] = str(df['Release'][0])
+    row['RAC'] = str(df['RAC'][0])
 
-    table = soup.find(string=re.compile('Instance')).findParent('table')
+    table = soup.find(string='Instance').findParent('table')
     df = pd.read_html(str(table))[0]
     row['Instance Name'] = str(df['Instance'][0])
+
+    string = soup.find(string='Platform')
+    if string:
+        table = string.findParent('table')
+        df = pd.read_html(str(table))[0]
+        row['Platform'] = str(df['Platform'][0])
+    else:
+        print('   error: "Platform" not found')
  
-    table = soup.find(string=re.compile('Host')).findParent('table')
+    table = soup.find(string=re.compile('Host( Name)?')).findParent('table')
     df = pd.read_html(str(table))[0]
     try:
         row['Host Name'] = str(df['Host Name'][0])
@@ -52,6 +67,15 @@ for awr_path in awr_paths:
     string = string.replace(',','')
     row['DB Time (mins)'] = float(string)
 
+    chapter = soup.find(re.compile("h\d+|p"), string='Exadata Storage Server Model')
+    if chapter:
+        row['Exadata'] = 'YES'
+        table = chapter.find_next('table')
+        df = pd.read_html(str(table))[0]
+        df = pd.read_html(str(table))[0]
+        row['Exadata Model'] = str(df['Model'][0])
+    else:
+        row['Exadata'] = 'NO'
 
     chapter = soup.find(string='Wait Classes by Total Wait Time')
     if chapter:
@@ -62,7 +86,7 @@ for awr_path in awr_paths:
         element = element.replace({"K":"*1e3", "M":"*1e6", "G":"*1e9", ",":""}, regex=True).map(pd.eval).astype(float)
         row['DB CPU (s)'] = float(element)
     else:
-        print('"Wait Classes by Total Wait Time" not found')
+        print('"   Wait Classes by Total Wait Time" not found, used alternative section "Service Statistics"')
         chapter = soup.find(re.compile("h\d+|p"), string='Service Statistics')
         table = chapter.find_next('table')
         df = pd.read_html(str(table))[0]
@@ -158,3 +182,4 @@ output['%idle CPU'] = output['IDLE_TIME'] / (output['BUSY_TIME'] + output['IDLE_
 
 #%% write the output dataframe to excel in the output folder
 output.to_excel(os.path.join('.', 'output', 'awr_data.xlsx'))
+
