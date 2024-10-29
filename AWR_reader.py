@@ -37,6 +37,7 @@ for awr_path in awr_paths:
     table = soup.find(string='Instance').findParent('table')
     df = pd.read_html(str(table))[0]
     row['Instance Name'] = str(df['Instance'][0])
+    row['Startup Time'] = str(df['Startup Time'][0])
 
     string = soup.find(string='Platform')
     if string:
@@ -61,6 +62,10 @@ for awr_path in awr_paths:
     string = re.compile('\d*,?\d*\.\d*').search(string).group(0)
     string = string.replace(',','')
     row['Elapsed Time (mins)'] = float(string)
+
+    row['Begin Snap:'] = str(df.loc['Begin Snap:']['Snap Time'])
+    row['End Snap:'] = str(df.loc['End Snap:']['Snap Time'])
+
 
     string = str(df.loc['DB Time:']['Snap Time'])
     string = re.compile('\d*,?\d*\.\d*').search(string).group(0)
@@ -183,3 +188,5 @@ output['%idle CPU'] = output['IDLE_TIME'] / (output['BUSY_TIME'] + output['IDLE_
 #%% write the output dataframe to excel in the output folder
 output.to_excel(os.path.join('.', 'output', 'awr_data.xlsx'))
 
+
+# %%
