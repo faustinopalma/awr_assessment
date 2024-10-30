@@ -123,6 +123,14 @@ for awr_path in awr_paths:
     string = string.replace(',','')
     row['IDLE_TIME'] = float(string)
 
+    chapter = soup.find(string=re.compile('Host CPU'))
+    if chapter:
+        table = chapter.find_next('table')
+        df = pd.read_html(str(table))[0]
+        row['Host CPU %Idle'] = float(df['%Idle'])
+    else:
+        print('   error: "Host CPU" not found')
+
 
     chapter = soup.find(string=re.compile('Instance CPU'))
     if chapter:
